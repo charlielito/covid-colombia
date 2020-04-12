@@ -6,6 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
+index.html
+location.csv
+function.zip
+.vscode
+env.sh
+
 # Distribution / packaging
 .Python
 build/
