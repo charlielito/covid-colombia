@@ -1,14 +1,17 @@
-import json
 import os
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
+import json
 
 import boto3
 import botocore
 import geopy
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objs as go
+import pytz
 import typer
 import unidecode
 from geopy.geocoders import Nominatim
@@ -44,7 +47,7 @@ def get_location_df(cities, retries=10):
             print("Service time out, retrying...")
 
     # Add santa marta because it fails to get the gps values
-    location_df[location_df.location == "Santa Marta Santa Marta D.T. y C"][
+    location_df[location_df.location == "SANTA MARTA SANTA MARTA D.T. Y C"][
         "lat_lon"
     ] = (
         11.2422289,
@@ -63,6 +66,17 @@ def get_platform(file_path):
     if len(split) == 1:
         return "local"
     return split[0]
+
+
+def write_file(file_path, content):
+    platform = get_platform(file_path)
+    if platform == "local":
+        with open(file_path, mode="w") as f:
+            f.write(content)
+    elif platform == "s3":
+        write_s3_file(file_path, content)
+    else:
+        raise NotImplementedError
 
 
 def file_exists(file_path):
@@ -117,7 +131,7 @@ def main(
         lambda row: f"{row.ciudad_de_ubicaci_n} {row.departamento}", axis=1
     )
     # remove accents
-    df["location"] = df.location.apply(unidecode.unidecode)
+    df["location"] = df.location.apply(lambda x: str(unidecode.unidecode(x)).upper())
     cities = pd.unique(df.location)
 
     print("Checking location file...")
@@ -159,42 +173,70 @@ def main(
         lambda loc: location_df[location_df.location == loc].iloc[0].lon
     )
 
-    center = location_df[location_df.location == "Bogota Bogota D.C."].iloc[0]
-    max_cases = max(gb.cases)
-    min_cases = min(gb.cases)
+    center = location_df[location_df.location == "BOGOTA BOGOTA D.C."].iloc[0]
+
+    fn = lambda x: np.log(x / 6 + 1)
+    max_cases = fn(max(gb.cases))
+    total = sum(gb.cases)
+    print(f"TOTAL CASES: {total}",)
 
     print("Getting plotly figure...")
+    utc_today = pytz.utc.localize(datetime.utcnow())
+    col_today = utc_today.astimezone(pytz.timezone("America/Bogota"))
+    today_str = col_today.strftime("%Y-%m-%d %H:%M %p")
+
     fig = go.Figure(
         data=[
             go.Scattermapbox(
                 lat=gb["lat"],
                 lon=gb["lon"],
                 marker=go.scattermapbox.Marker(
-                    size=120 * gb.cases / max_cases, color="red"
+                    size=40 * fn(gb.cases) / max_cases, color="black"
+                ),
+                text="Tucuarto",
+            ),
+            go.Scattermapbox(
+                lat=gb["lat"],
+                lon=gb["lon"],
+                marker=go.scattermapbox.Marker(
+                    size=40 * fn(gb.cases) / max_cases, color="red"
                 ),
                 text=[
                     f"{row.location} -> {row.cases} casos" for i, row in gb.iterrows()
                 ],
-            )
+                hoverinfo="text",
+            ),
         ],
         layout=dict(
+            title={
+                "text": f"Casos COVID-19 en Colombia: {total} total <br>"
+                f"Actualizado: {today_str}",
+                "xanchor": "center",
+                "x": 0.5,
+                # "yanchor": "top",
+                # "y": 0.95,
+            },
+            font=dict(family="Courier New, monospace", size=24, color="#7f7f7f"),
             mapbox=dict(
                 style="dark",
                 accesstoken=mapbox_token,
                 zoom=5,
                 center=go.layout.mapbox.Center(lat=center.lat, lon=center.lon),
-            )
+            ),
+            showlegend=False,
+            hoverlabel=dict(font=dict(size=25)),
         ),
     )
-    # fig.show()
-    # fig.write_html("index.html")
+    if viz:
+        fig.show()
+
     print("Done!!")
     with StringIO() as str_buf:
         fig.write_html(str_buf)
         out_str = str_buf.getvalue()
 
     print("Writing html to s3")
-    write_s3_file(output_html, out_str)
+    write_file(output_html, out_str)
     print("Done")
 
 
@@ -204,4 +246,4 @@ def lambda_handler(event, context):
         location_file="s3://www.charlielito.ml/data/location.csv",
         output_html="s3://www.charlielito.ml/index.html",
     )
-    return {"statusCode": 200, "body": json.dumps("Hello from Lambda!")}
+    return {"statusCode": 200, "body": json.dumps("Done with the work")}
