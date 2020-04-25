@@ -183,7 +183,7 @@ def main(
     print("Getting plotly figure...")
     utc_today = pytz.utc.localize(datetime.utcnow())
     col_today = utc_today.astimezone(pytz.timezone("America/Bogota"))
-    today_str = col_today.strftime("%Y-%m-%d %H:%M %p")
+    today_str = col_today.strftime("%Y-%m-%d %I:%M %p")
 
     fig = go.Figure(
         data=[
