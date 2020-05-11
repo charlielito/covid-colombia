@@ -1,2 +1,2 @@
-# covid-colombia
-Covid Colombia
+# Covid-colombia geográfico
+
