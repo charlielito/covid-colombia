@@ -3,7 +3,7 @@ La idea de este proyecto es poder visualizar casos de COVID-19 por ciudad en el 
 
 
 ## Mapa interactivo
-Asi luce el mapa interactivo para ver los casos por ciudad en toda Colombia. Pueden ingresar a este [página](http://www.charlielito.ml.s3-website.us-east-2.amazonaws.com/) para jugar con esto. Todos los dias se actualiza con los últimos datos.
+Asi luce el mapa interactivo para ver los casos por ciudad en toda Colombia. Pueden ingresar a esta [página](http://www.charlielito.ml.s3-website.us-east-2.amazonaws.com/) para jugar con esto. Todos los dias se actualiza con los últimos datos.
 ![alt text][s1] 
 
 
