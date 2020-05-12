@@ -17,7 +17,6 @@ from tqdm import tqdm
 import utils
 
 mapbox_token = os.getenv("MAPBOX_TOKEN")
-api_key = os.getenv("DATA_KEY")
 
 
 def main(
@@ -25,46 +24,7 @@ def main(
     use_cache: bool = False,
     location_file: str = "s3://www.charlielito.ml/data/location.csv",
 ):
-    client = Socrata("www.datos.gov.co", api_key)
-    results = client.get(database_id, limit=10000)
-
-    df = pd.DataFrame.from_records(results)
-    df["location"] = df.apply(
-        lambda row: f"{row.ciudad_de_ubicaci_n} {row.departamento}", axis=1
-    )
-    # remove accents
-    df["location"] = df.location.apply(lambda x: str(unidecode.unidecode(x)).upper())
-    cities = pd.unique(df.location)
-
-    print("Checking location file...")
-    if use_cache and utils.file_exists(location_file):
-        print("File exists now reading")
-        location_df = pd.read_csv(location_file)
-        print("Done")
-
-    else:
-        print("Could not locate file, calculating from scratch")
-        utils.maybe_mkdirs(location_file)
-
-        print("Calculating...")
-        location_df = utils.get_location_df(cities)
-        print("Ready! Writing to remote...")
-        location_df.to_csv(location_file, index=False)
-        print("Done")
-
-    print("Check if cities matches")
-    if len(location_df.location.values) != len(cities):
-        new_cities = set(cities) - set(location_df.location.values)
-        print("Difference", new_cities)
-        print("Calculating new cities")
-        _location_df = utils.get_location_df(list(new_cities))
-        location_df = location_df.append(_location_df)
-        print("Done!")
-
-        # save updated version
-        print("Ready! Writing to remote...")
-        location_df.to_csv(location_file, index=False)
-        print("Done")
+    df, location_df = utils.get_data(database_id, location_file, use_cache)
 
     gb = utils.get_groupby_location(df, location_df)
     center = location_df[location_df.location == "BOGOTA BOGOTA D.C."].iloc[0]

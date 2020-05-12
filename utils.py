@@ -7,13 +7,17 @@ import botocore
 import geopy
 import numpy as np
 import pandas as pd
+import unidecode
 from geopy.geocoders import Nominatim
-
 from PIL import Image
+from sodapy import Socrata
+from pathlib import Path
+
 
 S3 = boto3.client("s3")
 boto_resource = boto3.resource("s3")
 geolocator = Nominatim(user_agent="test")
+api_key = os.getenv("DATA_KEY")
 
 
 MONTHS_LOOKUP = [
@@ -31,6 +35,51 @@ MONTHS_LOOKUP = [
     "Noviembre",
     "Diciembre",
 ]
+
+
+def get_data(database_id, location_file, use_cache):
+    client = Socrata("www.datos.gov.co", api_key)
+    results = client.get(database_id, limit=100000)
+
+    df = pd.DataFrame.from_records(results)
+    df["location"] = df.apply(
+        lambda row: f"{row.ciudad_de_ubicaci_n} {row.departamento}", axis=1
+    )
+    # remove accents
+    df["location"] = df.location.apply(lambda x: str(unidecode.unidecode(x)).upper())
+    cities = pd.unique(df.location)
+
+    print("Checking location file...")
+    if use_cache and file_exists(location_file):
+        print("File exists now reading")
+        location_df = pd.read_csv(location_file)
+        print("Done")
+
+    else:
+        print("Could not locate file, calculating from scratch")
+        maybe_mkdirs(location_file)
+
+        print("Calculating...")
+        location_df = get_location_df(cities)
+        print("Ready! Writing to remote...")
+        location_df.to_csv(location_file, index=False)
+        print("Done")
+
+    print("Check if cities matches")
+    if len(location_df.location.values) != len(cities):
+        new_cities = set(cities) - set(location_df.location.values)
+        print("Difference", new_cities)
+        print("Calculating new cities")
+        _location_df = get_location_df(list(new_cities))
+        location_df = location_df.append(_location_df)
+        print("Done!")
+
+        # save updated version
+        print("Ready! Writing to remote...")
+        location_df.to_csv(location_file, index=False)
+        print("Done")
+
+    return df, location_df
 
 
 def bytes2image(image_bytes):
