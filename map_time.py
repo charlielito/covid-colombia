@@ -129,7 +129,7 @@ def main(
         frames.append(Image.fromarray(image))
 
     frames[0].save(
-        "animation.gif",
+        "images/animation.gif",
         format="GIF",
         append_images=frames[1:],
         save_all=True,
