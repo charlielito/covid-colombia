@@ -16,7 +16,7 @@ boto3 = "^1.12.39"
 s3fs = "^0.4.2"
 python-dateutil = "^2.8.1"
 psutil = "^5.7.0"
-Pillow = "^7.1.2"
+Pillow = "^8.1.1"
 tqdm = "^4.46.0"
 
 
